@@ -1,0 +1,104 @@
+.hotel-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.image-slider {
+    margin-bottom: 20px;
+}
+
+.image-slider img {
+    width: auto;
+    max-height: 400px;
+    height: auto;
+}
+
+.hotel-details {
+    margin-bottom: 20px;
+}
+
+.rooms {
+    margin-bottom: 20px;
+}
+
+.room-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.room-card {
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.room-card img {
+    width: 100%;
+    height: 200px;
+    border-bottom: 1px solid #ddd;
+}
+
+.room-card h3 {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-size: 18px;
+}
+
+.room-card p {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.room-card .MuiButton-root {
+    margin-top: 10px;
+}
+
+.recommended-hotels {
+    margin-bottom: 20px;
+}
+
+.hotel-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.hotel-card {
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.hotel-card img {
+    width: 100%;
+    height: 200px;
+    border-bottom: 1px solid #ddd;
+}
+
+.hotel-card h3 {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-size: 18px;
+}
+
+.hotel-card p {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.booked-hotels {
+    margin-bottom: 20px;
+}
+
+.booked-hotels ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.booked-hotels ul li {
+    margin-bottom: 10px;
+    font-size: 14px;
+}

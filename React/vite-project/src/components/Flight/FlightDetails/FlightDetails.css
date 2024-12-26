@@ -1,0 +1,62 @@
+/* FlightDetails.css */
+
+.FlightDetails {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .section-title {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 10px;
+  }
+  
+  .flight-details-container {
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 20px;
+  }
+  
+  .flight-info {
+    display: flex;
+    align-items: center;
+  }
+  
+  .logo img {
+    max-width: 100px;
+    height: auto;
+    margin-right: 20px;
+  }
+  
+  .details p {
+    margin: 5px 0;
+  }
+  
+  .airline {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #007bff;
+  }
+  
+  .slice {
+    margin-top: 20px;
+    border-top: 1px solid #ccc;
+    padding-top: 15px;
+  }
+  
+  .segment-number {
+    font-weight: bold;
+    color: #555;
+  }
+  
+  .loading,
+  .error {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-top: 20px;
+    color: #dc3545; /* Bootstrap's danger color for error */
+  }
+  

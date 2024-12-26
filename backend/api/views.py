@@ -23,8 +23,15 @@ from rest_framework.permissions import AllowAny
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.core.exceptions import ObjectDoesNotExist 
-
-
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from django.core.mail import EmailMultiAlternatives
+import os
+from django.db.models import Sum
+from collections import defaultdict
 
 # class UserRegister(APIView):
 #     permission_classes = (permissions.AllowAny,)
@@ -357,33 +364,548 @@ def UserProfileUpdate(request):
 
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@authentication_classes([JWTAuthentication])
-def createBooking(request):
-    user = request.user
-    data = request.data
-    booking = Booking(
-        user=user,
-        duffel_booking_id=data['id'],
-        origin=data['origin'],
-        destination=data['destination'],
-        departure_date=data['departure_date'],
-        return_date=data.get('return_date'),
-        total_amount=data['total_amount'],
-        currency=data['currency']
-    )
-    booking.save()
-    serializer = BookingSerializer(booking)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# @authentication_classes([JWTAuthentication])
+# def createBooking(request):
+#     user = request.user
+#     data = request.data
+#     booking = Booking(
+#         user=user,
+#         duffel_booking_id=data['id'],
+#         origin=data['origin'],
+#         destination=data['destination'],
+#         departure_date=data['departure_date'],
+#         return_date=data.get('return_date'),
+#         total_amount=data['total_amount'],
+#         currency=data['currency']
+#     )
+#     booking.save()
+#     serializer = BookingSerializer(booking)
+#     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-@authentication_classes([JWTAuthentication])
-def delete_booking(request, booking_id):
+# @api_view(['DELETE'])
+# @permission_classes([IsAuthenticated])
+# @authentication_classes([JWTAuthentication])
+# def delete_booking(request, booking_id):
+#     try:
+#         booking = Booking.objects.get(id=booking_id, user=request.user)
+#         booking.delete()
+#         return Response({'message': 'Booking deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+#     except Booking.DoesNotExist:
+#         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@permission_classes([AllowAny])
+def getDetailsByID(request):
     try:
-        booking = Booking.objects.get(id=booking_id, user=request.user)
-        booking.delete()
-        return Response({'message': 'Booking deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        duffel = Duffel(access_token='duffel_test_bl6lsCRkoKbnG3GGptTbNRkW92M2QTZDWsU_oGp_QqL')
+        id = request.GET.get('id', 'off_0000AjUXwSWpvUpH5SIxrD')  
+
+        response = duffel.offers.get(id)
+
+        if not response:
+            return JsonResponse({'error': f'Failed to fetch data from Duffel API. Status code: {response.status_code}'})
+
+        def airport_to_dict(airport):
+            return {
+                "iata_code": getattr(airport, 'iata_code', None),
+                "name": getattr(airport, 'name', None),
+                "city_name": getattr(airport, 'city_name', None),
+                "latitude": getattr(airport, 'latitude', None),
+                "longitude": getattr(airport, 'longitude', None),
+                "time_zone": getattr(airport, 'time_zone', None)
+            }
+            
+        def airline_info(airline):
+            return {
+                "conditions_of_carriage_url": getattr(airline, 'conditions_of_carriage_url', None),
+                "iata_code": getattr(airline, 'iata_code', None),
+                "id": getattr(airline, 'id', None),
+                "logo_lockup_url": getattr(airline, 'logo_lockup_url', None),
+                "logo_symbol_url": getattr(airline, 'logo_symbol_url', None),
+                "name": getattr(airline, 'name', None)
+            }
+
+        def extract_offer_slice(slice):
+            return {
+                # "origin": airport_to_dict(slice.origin),
+                # "destination": airport_to_dict(slice.destination),
+                "segment": [extract_segment_data(segment) for segment in slice.segments],
+                "duration": slice.duration
+            } if hasattr(slice, 'segments') else {
+                # "failure": airport_to_dict(slice.origin),
+                # "destination": airport_to_dict(slice.destination),
+                # "duration": slice.duration
+            }
+
+        def extract_segment_data(segment):
+            return {
+                "id": segment.id,
+                "origin": airport_to_dict(segment.origin),
+                "destination": airport_to_dict(segment.destination),
+                # "operating_carrier": segment.operating_carrier,
+                # "marketing_carrier": segment.marketing_carrier,
+                "marketing_carrier_flight_number": segment.marketing_carrier_flight_number,
+                # "aircraft": segment.aircraft,
+                "duration": segment.duration,
+                "distance": segment.distance,
+                "stops": extract_stops_data(segment.stops),
+                "departing_at": segment.departing_at,
+                "arriving_at": segment.arriving_at
+            }
+                
+        def extract_stops_data(stop):
+            return{
+                "id": getattr(stop, 'id', None),
+                "duration": getattr(stop, 'duration', None)
+                # "departing_at": getattr(stop, 'departing_at', None),
+                # "id": stop.id,
+                # "departing_at":stop.departing_at,
+                # "arriving_at":stop.arriving_at
+            }
+        
+        def extract_available_services(service):
+            return {
+                # "type": service.type,
+                # "total_currency": service.total_currency,
+                # "total_amount": service.total_amount,
+            }
+        
+        extract_offer_data = {
+                "id": response.id,
+                "total_amount": response.total_amount,
+                "total_currency": response.total_currency,
+                "available_services": extract_available_services(response.available_services),
+                "owner": airline_info(response.owner),
+                "base_amount": response.base_amount,
+                "tax_amount": response.tax_amount,
+                "base_currency": response.base_currency,
+                "total_emissions_kg": response.total_emissions_kg,
+                "offerslices": [extract_offer_slice(slice) for slice in response.slices],
+            }
+ 
+        return JsonResponse(extract_offer_data, safe=False)
+
+    except Exception as e:
+        return JsonResponse({'error': f'Failed to process request: {str(e)}'})
+
+# @csrf_exempt
+# @api_view(['POST'])
+# def makebooking(request):
+#     if request.method == 'POST':
+#         try:
+#             # Create a new Booking instance
+#             booking = Booking.objects.create(
+#                 passenger_name=request.data.get('passenger_name'),
+#                 card=request.data.get('card'),
+#                 email=request.data.get('email'),
+#                 flightname=request.data.get('flightname'),
+#                 logo=request.data.get('logo'),
+#                 flightnumber=request.data.get('flightnumber'),
+#                 departure_time=request.data.get('departure_time'),
+#                 arrival_time=request.data.get('arrival_time'),
+#                 origin=request.data.get('origin'),
+#                 destination=request.data.get('destination'),
+#                 currency=request.data.get('currency'),
+#                 base_amount=request.data.get('base_amount'),
+#                 tax_amount=request.data.get('tax_amount'),
+#                 total_amount=request.data.get('total_amount'),
+#             )
+            
+#             return JsonResponse({'message': 'Booking created successfully'})
+        
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)  # Handle any other exceptions
+    
+#     else:
+#         # Handle GET requests or other methods if necessary
+#         return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def makeflightbooking(request):
+    if request.method == 'POST':
+        # Assuming data is sent as JSON
+        data = request.data
+        
+        # Create a new Booking instance
+        booking = Booking.objects.create(
+            user=request.user if request.user.is_authenticated else None,
+            passenger_name=data.get('passenger_name'),
+            card=data.get('card'),
+            email=data.get('email'),
+            flightname=data.get('flightname'),
+            logo=data.get('logo'),
+            flightnumber=data.get('flightnumber'),
+            departure_time=data.get('departure_time'),
+            arrival_time=data.get('arrival_time'),
+            origin=data.get('origin'),
+            destination=data.get('destination'),
+            currency=data.get('currency'),
+            base_amount=data.get('base_amount'),
+            tax_amount=data.get('tax_amount'),
+            total_amount=data.get('total_amount'),
+        )
+
+        user = request.user  # Assuming you have authentication set up and user is available in request
+        if user:
+            if user.bookingID:  # Check if recipes field is not empty
+                bookingIDs = user.bookingID.split(',')  # Split existing recipe IDs
+            else:
+                bookingIDs = []
+            bookingIDs.append(str(booking.id))  # Append new recipe ID as string
+            user.bookingID = ','.join(bookingIDs)  # Join back into a comma-separated string
+            user.save()  # Save the profile to persist the changes
+
+
+        send_booking_confirmation_email(booking)
+        
+        return Response({'status': 'accepted'})  # Return a clear response
+        
+    return Response({'status': 'rejected'})  # Handle method not allowed
+
+def send_booking_confirmation_email(booking):
+    subject = 'Booking Confirmation'
+    context = {
+        'booking_id': booking.id,
+        'passenger_name': booking.passenger_name,
+        'flightname': booking.flightname,
+        'departure_time': booking.departure_time,
+        'arrival_time': booking.arrival_time,
+        'origin': booking.origin,
+        'destination': booking.destination,
+        'total_amount': booking.total_amount,
+        'currency': booking.currency,
+    }
+
+    # Render email body from a template
+    html_message = render_to_string('booking_confirmation.html', context)
+    plain_message = strip_tags(html_message)
+
+    pdf_file = generate_booking_pdf(booking)
+
+    # Send email using Django's send_mail function
+    email = EmailMultiAlternatives(
+        subject,
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [booking.email],
+    )
+    
+    # Attach PDF file to email
+    with open(pdf_file, 'rb') as f:
+        email.attach(filename=os.path.basename(pdf_file), content=f.read(), mimetype='application/pdf')
+
+    # Attach HTML content as alternative content
+    email.attach_alternative(html_message, "text/html")
+
+    # Send email
+    email.send()
+
+    os.remove(pdf_file)
+
+def generate_booking_pdf(booking):
+    filename = f'booking_{booking.id}.pdf'
+    document_title = f'Booking Details - {booking.id}'
+
+    # Create a canvas
+    c = canvas.Canvas(filename, pagesize=letter)
+    c.setTitle(document_title)
+
+    # Write booking details to the PDF
+    c.drawString(100, 750, f'Booking ID: {booking.id}')
+    c.drawString(100, 730, f'Passenger Name: {booking.passenger_name}')
+    c.drawString(100, 710, f'Flight Name: {booking.flightname}')
+    # Add more details as needed
+
+    c.save()
+
+    return filename
+
+@api_view(['GET'])
+def get_booking_details(request):
+    id = request.GET.get('id', '45')  
+
+    try:
+        booking = Booking.objects.get(id=id)
+        # You can serialize the booking data if needed
+        booking_data = {
+            'id': booking.id,
+            'user': booking.user.email,
+            'passenger_name': booking.passenger_name,
+            'card': booking.card,
+            'email': booking.email,
+            'flightname': booking.flightname,
+            'logo': booking.logo,
+            'flightnumber': booking.flightnumber,
+            'departure_time': booking.departure_time,
+            'arrival_time': booking.arrival_time,
+            'origin': booking.origin,
+            'destination': booking.destination,
+            'currency': booking.currency,
+            'base_amount': str(booking.base_amount),
+            'tax_amount': str(booking.tax_amount),
+            'total_amount': str(booking.total_amount),
+            'created_at': booking.created_at,
+            'updated_at': booking.updated_at,
+        }
+        return Response(booking_data, status=status.HTTP_200_OK)
     except Booking.DoesNotExist:
         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def hotel_detail(request, id):
+    try:
+        hotel = Hotel.objects.get(id=id)
+        serializer = HotelSerializer(hotel)
+        return Response(serializer.data)
+    except Hotel.DoesNotExist:
+        return Response(status=404)
+
+@api_view(['GET'])
+def recommend_hotels(request, city):
+    hotels = Hotel.objects.filter(location_city=city).exclude(id=request.query_params.get('exclude_id'))
+    serializer = HotelSerializer(hotels, many=True)
+    return Response(serializer.data)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def makehotelbooking(request):
+    if request.method == 'POST':
+        # Assuming data is sent as JSON
+        data = request.data
+        
+        # Create a new Booking instance
+        hotelbooking = HotelBooking.objects.create(
+            user=request.user if request.user.is_authenticated else None,
+            hotel_id=data.get('hotel_id'),
+            hotel_name=data.get('hotel_name'),
+            name=data.get('name'),
+            card_number=data.get('card_number'),
+            email=data.get('email'),
+            check_in_date=data.get('check_in_date'),
+            check_out_date=data.get('check_out_date'),
+            room_type=data.get('room_type'),
+            number_of_rooms=data.get('number_of_rooms'),
+            total_price=data.get('total_price'),
+        )
+
+        user = request.user
+        if user:
+            if user.hotelbookingID: 
+                bookingIDs = user.hotelbookingID.split(',')  
+            else:
+                bookingIDs = []
+            bookingIDs.append(str(hotelbooking.id))  
+            user.hotelbookingID = ','.join(bookingIDs)  
+            user.save()  # Save the profile to persist the changes
+
+
+        send_hotel_booking_confirmation_email(hotelbooking)
+        
+        return Response({'status': 'accepted'})  # Return a clear response
+        
+    return Response({'status': 'rejected'})  # Handle method not allowed
+
+def send_hotel_booking_confirmation_email(booking):
+    subject = 'Booking Confirmation'
+    context = {
+        'booking_id': booking.hotel_id,
+        'passenger_name': booking.name,
+        'hotel_name': booking.hotel_name,
+        'check_in_date': booking.check_in_date,
+        'check_out_date': booking.check_out_date,
+        'room_type': booking.room_type,
+        'number_of_rooms': booking.number_of_rooms,
+        'total_price': booking.total_price,
+        'currency': "USD",
+    }
+
+    # Render email body from a template
+    html_message = render_to_string('hotel_booking_confirmation.html', context)
+    plain_message = strip_tags(html_message)
+
+    pdf_file = generate_hotelbooking_pdf(booking)
+
+    # Send email using Django's send_mail function
+    email = EmailMultiAlternatives(
+        subject,
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [booking.email],
+    )
+    
+    # Attach PDF file to email
+    with open(pdf_file, 'rb') as f:
+        email.attach(filename=os.path.basename(pdf_file), content=f.read(), mimetype='application/pdf')
+
+    # Attach HTML content as alternative content
+    email.attach_alternative(html_message, "text/html")
+
+    # Send email
+    email.send()
+
+    os.remove(pdf_file)
+
+def generate_hotelbooking_pdf(booking):
+    filename = f'booking_{booking.id}.pdf'
+    document_title = f'Booking Details - {booking.id}'
+
+    # Create a canvas
+    c = canvas.Canvas(filename, pagesize=letter)
+    c.setTitle(document_title)
+
+    # Write booking details to the PDF
+    c.drawString(100, 750, f'Booking ID: {booking.hotel_id}')
+    c.drawString(100, 730, f'Passenger Name: {booking.name}')
+    c.drawString(100, 710, f'Flight Name: {booking.hotel_name}')
+    # Add more details as needed
+
+    c.save()
+
+    return filename
+
+def admin_report(request):
+    # Query to get total number of bookings
+    total_bookings = Booking.objects.count()
+
+    # Query to get total revenue from flight bookings
+    total_revenue_flight = Booking.objects.aggregate(total=Sum('total_amount')).get('total', 0.0)
+
+    # Query to get total number of hotel bookings
+    total_hotel_bookings = HotelBooking.objects.count()
+
+    # Query to get total revenue from hotel bookings
+    total_revenue_hotel = HotelBooking.objects.exclude(status='Cancelled').aggregate(total=Sum('total_price')).get('total', 0.0)
+
+    # Query to get total number of users
+    total_users = User.objects.count()
+
+    # Query to get total number of admin users
+    total_admins = User.objects.filter(is_admin=True).count()
+
+    # Prepare data to send as JSON response
+    data = {
+        'total_bookings': total_bookings,
+        'total_revenue_flight': total_revenue_flight,
+        'total_hotel_bookings': total_hotel_bookings,
+        'total_revenue_hotel': total_revenue_hotel,
+        'total_users': total_users,
+        'total_admins': total_admins,
+    }
+
+    # Return JSON response
+    return JsonResponse(data)
+
+class hotel_list(APIView):
+    permission_classes = (permissions.AllowAny,)
+    def get(self, request):
+        hotels = Hotel.objects.all()
+        hotel_counts = defaultdict(int)  
+        
+        for hotel in hotels:
+            locations = hotel.location_city.split(', ')
+            for location in locations:
+                hotel_counts[location] += 1
+        
+        sorted_locations = sorted(hotel_counts.items(), key=lambda x: x[1], reverse=True)
+
+        location_strings = [f"{location[0]}" for location in sorted_locations]
+
+        return Response(location_strings, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+def get_hotel_booking_details(request):
+    id = request.GET.get('id', '2')  
+
+    try:
+        booking = HotelBooking.objects.get(id=id)
+        # You can serialize the booking data if needed
+        booking_data = {
+            'id': booking.id,
+            'hotel_name': booking.hotel_name,
+            'check_in_date': booking.check_in_date,
+            'check_out_date': booking.check_out_date,
+            'total_price': booking.total_price,
+            'booking_date': booking.booking_date,
+            'status': booking.status,
+        }
+        return Response(booking_data, status=status.HTTP_200_OK)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def cancel_booking(request):
+    booking_id = request.data.get('id')
+    if not booking_id:
+        return Response({'error': 'Booking ID parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        booking = HotelBooking.objects.get(id=booking_id)
+        # Update the booking status to 'Request to cancel'
+        booking.status = 'Request to cancel'
+        booking.save()
+        return Response({'message': 'Booking cancellation requested successfully'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def hotel_bookings(request):
+    try:
+        hotel_bookings = HotelBooking.objects.all()
+        serializer = HotelBookingSerializer(hotel_bookings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def cancel_requests(request):
+    try:
+        hotel_bookings = HotelBooking.objects.all().exclude(status='Booked').exclude(status='Cancelled')
+        serializer = HotelBookingSerializer(hotel_bookings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def admin_cancel_booking(request):
+    booking_id = request.data.get('id')
+    decision = request.data.get('decision')
+    if not booking_id:
+        return Response({'error': 'Booking ID parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        booking = HotelBooking.objects.get(id=booking_id)
+        # Update the booking status to 'Request to cancel'
+        if decision == 'accept':
+            booking.status = 'Cancelled'
+        else:
+            booking.status = 'Booked'
+
+        booking.save()
+        return Response({'message': 'Booking cancellation requested successfully'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

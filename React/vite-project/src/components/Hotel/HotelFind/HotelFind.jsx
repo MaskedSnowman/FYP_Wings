@@ -7,13 +7,14 @@ import StarIcon from "@mui/icons-material/Star";
 import Slider from "@mui/material/Slider";
 import { useParams } from "react-router-dom";
 import { IoMdArrowDropdown, IoIosSearch } from "react-icons/io";
-import { FaLocationDot } from "react-icons/fa6";
+// import { FaLocationDot } from "react-icons/fa";
 import { FaCoins, FaPlaneDeparture } from "react-icons/fa";
 import { IoStar } from "react-icons/io5";
 import { GiCommercialAirplane } from "react-icons/gi";
 import "./HotelFind.css";
 import Logo from "../../assets/L1.jpg";
 import Fly1 from "../../assets/BUDGETAIR.png";
+import { useNavigate } from 'react-router-dom';
 
 const HotelFind = () => {
   const [hotels, setHotels] = useState([]);
@@ -26,22 +27,36 @@ const HotelFind = () => {
       .toISOString()
       .slice(0, 10)
   );
-  const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(1000);
+  const [minPrice, setMinPrice] = useState(null);
+  const [maxPrice, setMaxPrice] = useState(10000);
   const [departure, setDeparture] = useState([1, 12]);
   const { travelCity, checkInDate, checkOutDate } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchHotels = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:8000/api/gethotel", {
-          params: {
-            city: travelCity,
-            arrival_date: checkInDate,
-            departure_date: checkOutDate,
-          },
-        });
-        setHotels(response.data.hotels);
+        const response = await axios.get(`http://127.0.0.1:8000/api/recommend/${travelCity}`);
+        const fetchedHotels = response.data;
+        // Calculate min and max prices from fetched hotels
+        if (fetchedHotels.length > 0) {
+          const prices = fetchedHotels.map(hotel => {
+            const priceStr = hotel.room_types_price.split('per night],[')[0].substring(5).replace(',', ''); // Remove commas
+            return parseInt(priceStr);
+          });
+          const min = Math.min(...prices);
+          const max = Math.max(...prices);
+          setMinPrice(min);
+          setMaxPrice(max);
+          console.log("1"+min+max);
+          // Sort hotels by price ascending
+          fetchedHotels.sort((a, b) => {
+            const priceA = parseInt(a.room_types_price.split('per night],[')[0].substring(5).replace(',', ''));
+            const priceB = parseInt(b.room_types_price.split('per night],[')[0].substring(5).replace(',', ''));
+            return priceA - priceB;
+          });
+        }
+        setHotels(fetchedHotels);
       } catch (error) {
         setError(error.message);
       } finally {
@@ -74,7 +89,7 @@ const HotelFind = () => {
   };
 
   const convertReviewScoreToStars = (score) => {
-    return score / 2;
+    return score;
   };
 
   const handleSubmit = async (event) => {
@@ -97,9 +112,21 @@ const HotelFind = () => {
     }
   };
 
-  // if (loading) {
-  //   return <div>Loading...</div>;
-  // }
+  const handleViewDeals = (hotelId) => {
+    navigate(`/hotel/${hotelId}/${checkInDate}/${checkOutDate}`);
+  };
+
+  const filteredHotels = hotels.filter(hotel => {
+    if (minPrice === null || maxPrice === null) {
+      return true; // Return all hotels if minPrice or maxPrice is not yet set
+    }
+    const price = parseInt(hotel.room_types_price.split('per night],[')[0].substring(5).replace(',', ''));
+    return price >= minPrice && price <= maxPrice;
+  });
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (error) {
     return <div>Error: {error}</div>;
@@ -120,7 +147,9 @@ const HotelFind = () => {
                     getAriaLabel={() => "Price range"}
                     value={[minPrice, maxPrice]}
                     onChange={handleChange}
-                    step={10}
+                    step={20}
+                    min={0}
+                    max={50000}
                     valueLabelDisplay="auto"
                   />
                 </Box>
@@ -152,7 +181,7 @@ const HotelFind = () => {
                   <h2>
                     <span className="icon-text">Hotels</span>
                   </h2>
-                  <p>250 places</p>
+                  <p>{filteredHotels.length} places</p>
                 </div>
               </button>
               <button>
@@ -160,7 +189,7 @@ const HotelFind = () => {
                   <h2>
                     <span className="icon-text">Motels</span>
                   </h2>
-                  <p>51 places</p>
+                  <p>0 places</p>
                 </div>
               </button>
               <button>
@@ -168,15 +197,15 @@ const HotelFind = () => {
                   <h2>
                     <span className="icon-text">Resorts</span>
                   </h2>
-                  <p>25 places</p>
+                  <p>0 places</p>
                 </div>
               </button>
             </div>
-            {hotels && hotels.length > 0 ? (
-              hotels.map((hotel, index) => (
+            {filteredHotels.length > 0 ? (
+              filteredHotels.map((hotel, index) => (
                 <div key={index} className="List-Container">
                   <div className="logo">
-                    <img src={hotel.main_photo_url} alt="Hotel Logo" />
+                    <img src={hotel.images.split(',')[0]} alt="Hotel Logo" />
                   </div>
                   <div className="rows-container">
                     <div className="row-1">
@@ -185,7 +214,7 @@ const HotelFind = () => {
                         starting from
                         <br />
                         <span className="currency">
-                          {hotel.min_total_price} {hotel.currencycode}
+                          ${hotel.room_types_price.split('per night],[')[0].substring(5)}
                         </span>
                       </p>
                     </div>
@@ -193,8 +222,8 @@ const HotelFind = () => {
                       <div className="box">
                         <p className="flightD">
                           <span className="HLoc">
-                            <FaLocationDot />
-                            {hotel.city}
+                            {/* <FaLocationDot /> */}
+                            {hotel.location_city}
                           </span>
                           <Box
                             sx={{
@@ -206,7 +235,7 @@ const HotelFind = () => {
                             <Rating
                               name="text-feedback"
                               value={convertReviewScoreToStars(
-                                hotel.review_score
+                                hotel.rating
                               )}
                               readOnly
                               precision={0.5}
@@ -222,16 +251,16 @@ const HotelFind = () => {
                       </div>
                       <div className="box">
                         <p>
-                          <span className="num">{hotel.review_score}</span>{" "}
-                          {hotel.review_score_word}{" "}
+                          {/* <span className="num">{hotel.rating}</span>{" "}
+                          {hotel.rating}{" "}
                           <span className="stop">
-                            ({hotel.review_nr} reviews)
-                          </span>
+                            ({hotel.rating} reviews)
+                          </span> */}
                         </p>
                       </div>
                     </div>
                     <div className="visit">
-                      <button>View Deals</button>
+                      <button onClick={() => handleViewDeals(hotel.id)}>View Deals</button>
                     </div>
                   </div>
                 </div>

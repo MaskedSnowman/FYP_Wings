@@ -94,11 +94,15 @@ const FlightBook = () => {
     console.log("Travel City:", travelCity);
     console.log("Departure Date:", departDate);
     console.log("Arrival Date:", arrivalDate);
+
+    const originCity2 = originCity.split(' ')[1].replace('(', '').replace(')', '');
+    const travelCity2 = travelCity.split(' ')[1].replace('(', '').replace(')', '');
+    
     try {
       navigate(
-        `/FlightFind/${originCity}/${travelCity}/${departDate}/${arrivalDate}`
+        `/FlightFind/${originCity2}/${travelCity2}/${departDate}/${arrivalDate}`
       );
-    } catch (error) {
+      } catch (error) {
       console.error("Error fetching flights:", error);
     }
   };
@@ -274,7 +278,7 @@ const FlightBook = () => {
                       {...props}
                     >
                       {option.country} ({option.airport})
-                    </Box>
+                      </Box>
                   )}
                   renderInput={(params) => (
                     <TextField

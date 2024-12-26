@@ -1,6 +1,5 @@
-/*eslint-disable */
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Box from "@mui/material/Box";
 import Slider from "@mui/material/Slider";
@@ -12,11 +11,12 @@ import { IoStar } from "react-icons/io5";
 import { GiCommercialAirplane } from "react-icons/gi";
 
 const FlightFind = () => {
-  const [flights, setFlights] = useState("");
+  const [flights, setFlights] = useState({ offers: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { originCity, travelCity, departDate, arrivalDate } = useParams();
+  const { originCity2, travelCity2, departDate, arrivalDate } = useParams();
   const [depart, setDepart] = useState(new Date().toISOString().slice(0, 10));
+  const navigate = useNavigate();
   const [arrival, setArrival] = useState(
     new Date(new Date().setDate(new Date().getDate() + 7))
       .toISOString()
@@ -24,24 +24,17 @@ const FlightFind = () => {
   );
   const [origin, setOrigin] = useState("");
   const [travel, setTravel] = useState("");
-  const [minPrice, setMinPrice] = useState(1000);
+  const [minPrice, setMinPrice] = useState(200);
   const [maxPrice, setMaxPrice] = useState(4000);
   const [departure, setDeparture] = useState([1, 12]);
-  const formatDuration = (duration) => {
-    // Check if the input is in the correct format
-    const regex = /^PT(\d+H)?(\d+M)?$/;
 
-    // Extract hours and minutes
+  const formatDuration = (duration) => {
+    const regex = /^PT(\d+H)?(\d+M)?$/;
     const hoursMatch = duration.match(/(\d+)H/);
     const minutesMatch = duration.match(/(\d+)M/);
-
-    // Get the hours and minutes values
     const hours = hoursMatch ? hoursMatch[1] : "0";
     const minutes = minutesMatch ? minutesMatch[1] : "0";
-
-    // Format the duration
     const formattedDuration = `${hours}h ${minutes}m`;
-
     return formattedDuration;
   };
 
@@ -53,25 +46,46 @@ const FlightFind = () => {
       hour12: true,
     });
   };
+
   const convertToRinggit = (amountInDollars) => {
     return (amountInDollars * 4.67).toFixed(2);
   };
 
+  const handleViewDetails = (offerId) => {
+    navigate(`/flightdetails/${offerId}`);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      console.log(originCity + travelCity + arrivalDate + departDate);
       try {
         const response = await axios.get(
           "http://127.0.0.1:8000/api/getflight",
           {
             params: {
-              origin: originCity,
-              destination: travelCity,
+              origin: originCity2,
+              destination: travelCity2,
               departure_date: departDate,
             },
           }
         );
-        setFlights(response.data);
+        const data = response.data;
+
+        const prices = data.offers.map((offer) =>
+          parseFloat(offer.total_amount)
+        );
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        setMinPrice(min);
+        setMaxPrice(max);
+
+        const sortedOffers = data.offers.sort(
+          (a, b) => parseFloat(a.total_amount) - parseFloat(b.total_amount)
+        );
+
+        setFlights({
+          ...data,
+          offers: sortedOffers,
+        });
       } catch (error) {
         setError(error.message);
       } finally {
@@ -80,22 +94,10 @@ const FlightFind = () => {
     };
 
     fetchData();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
+  }, [originCity2, travelCity2, departDate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log("Origin City:", origin);
-    console.log("Travel City:", travel);
-    console.log("Departure Date:", depart);
-    console.log("Arrival Date:", arrival);
     try {
       const response = await axios.get("http://127.0.0.1:8000/api/getflight", {
         params: {
@@ -104,8 +106,24 @@ const FlightFind = () => {
           departure_date: depart,
         },
       });
-      setFlights(response.data);
-      console.log(response.data);
+      const data = response.data;
+
+      const prices = data.offers.map((offer) =>
+        parseFloat(offer.total_amount)
+      );
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      setMinPrice(min);
+      setMaxPrice(max);
+
+      const sortedOffers = data.offers.sort(
+        (a, b) => parseFloat(a.total_amount) - parseFloat(b.total_amount)
+      );
+
+      setFlights({
+        ...data,
+        offers: sortedOffers,
+      });
     } catch (error) {
       setError(error.message);
     } finally {
@@ -121,6 +139,19 @@ const FlightFind = () => {
   const handleDepartureChange = (event, newDeparture) => {
     setDeparture(newDeparture);
   };
+
+  const filteredFlights = flights.offers.filter((offer) => {
+    const totalAmount = parseFloat(offer.total_amount);
+    return totalAmount >= minPrice && totalAmount <= maxPrice;
+  });
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <div className="FlightFind">
@@ -196,8 +227,8 @@ const FlightFind = () => {
                     value={[minPrice, maxPrice]}
                     onChange={handlePriceChange}
                     step={10}
-                    min={1000}
-                    max={4000}
+                    min={200}
+                    max={500}
                     marks={[
                       { value: 1000, label: "$1000" },
                       { value: 4000, label: "$4000" },
@@ -233,7 +264,7 @@ const FlightFind = () => {
                     <FaCoins />
                     <span className="icon-text">Cheapest</span>
                   </h2>
-                  <p>$99</p>
+                  <p>{minPrice}</p>
                 </div>
               </button>
               <button>
@@ -242,7 +273,7 @@ const FlightFind = () => {
                     <IoStar />
                     <span className="icon-text">Best</span>
                   </h2>
-                  <p>$99</p>
+                  <p>{maxPrice}</p>
                 </div>
               </button>
               <button>
@@ -255,21 +286,26 @@ const FlightFind = () => {
                 </div>
               </button>
             </div>
-            {flights.offers.map((offer, index) => (
+            {filteredFlights.map((offer, index) => (
               <div key={index} className="List-Container">
                 <div className="logo">
-                  <img src={offer.owner.logo_symbol_url} alt="Flight Logo" />
+                  <img
+                    src={offer.owner.logo_symbol_url}
+                    alt="Flight Logo"
+                  />
                 </div>
                 <div className="rows-container">
                   <div className="row-1">
                     <p>
-                      <span className="num">4.2</span> {offer.owner.name}
+                      <span className="num">4.2</span>{" "}
+                      {offer.owner.name}
                     </p>
                     <p className="price">
                       starting from
                       <br />
                       <span className="currency">
-                        {convertToRinggit(offer.total_amount)}
+                        {offer.total_amount}
+                        {/* {convertToRinggit(offer.total_amount)} */}
                       </span>
                     </p>
                   </div>
@@ -291,7 +327,9 @@ const FlightFind = () => {
                       </p>
                       <p className="stop"> Direct</p>
                       <p>
-                        {formatDuration(offer.offerslices[0].duration)}
+                        {formatDuration(
+                          offer.offerslices[0].duration
+                        )}
                         <br />
                         <p className="stop">
                           {flights.slices[0].origin.iata_code}-
@@ -300,13 +338,18 @@ const FlightFind = () => {
                       </p>
                     </div>
                     <div className="visit">
-                      <button>View Deals</button>
+                      <button
+                        onClick={() =>
+                          handleViewDetails(offer.id)
+                        }
+                      >
+                        View Deals
+                      </button>
                     </div>
                   </div>
                 </div>{" "}
               </div>
             ))}
-            )
           </div>
         </div>
       </div>

@@ -6,8 +6,8 @@ import "./Login2.css";
 import Image from "../../assets/1.jpg";
 import AuthContext from "../../../functions/Authprovider/authprovider";
 
-axios.defaults.xsrfCookieName = "csrftoken";
-axios.defaults.xsrfHeaderName = "X-CSRFToken";
+// axios.defaults.xsrfCookieName = "csrftoken";
+// axios.defaults.xsrfHeaderName = "X-CSRFToken";
 axios.defaults.withCredentials = true;
 
 function Login2() {

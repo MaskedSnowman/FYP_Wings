@@ -1,6 +1,6 @@
 .HotelBook .container {
-  height: auto;
-  width: 100%;
+  height: 100%;
+  width: auto;
   /* width: 90;
     margin: auto; */
   align-items: center;
@@ -14,6 +14,8 @@
 }
 .HotelBook .BkImage img {
   /* height: 60%; */
+  /* height: 90%;
+  height: 90%; */
 }
 .HotelBook .text {
   color: white;
@@ -34,7 +36,7 @@
   font-weight: bold;
   font-size: 20px;
   position: absolute;
-  top: 0px;
+  top: 15px;
 }
 .HotelBook .top-field {
   display: flex;

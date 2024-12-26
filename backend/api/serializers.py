@@ -7,6 +7,23 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 User = get_user_model()
 
+class HotelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Hotel
+        fields = '__all__'
+
+    # def to_representation(self, instance):
+    #     representation = super().to_representation(instance)
+    #     # Convert JSONField strings back to JSON objects
+    #     representation['room_types'] = instance.room_types
+    #     representation['nearest_attractions'] = instance.nearest_attractions
+    #     representation['dining_options'] = instance.dining_options
+    #     representation['spa_treatments'] = instance.spa_treatments
+    #     representation['spa_facilities'] = instance.spa_facilities
+    #     representation['image_links'] = instance.image_links
+    #     return representation
+
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -29,9 +46,8 @@ class UserToken(TokenObtainPairSerializer):
         token['last_name'] = user.last_name
         token['email'] = user.email
         token['phone'] = user.phone
-        token['password'] = user.password
+        token['is_admin'] = user.is_admin
         return token
-
 
 class UserRegister(serializers.ModelSerializer):
     password = serializers.CharField(write_only = True, required = True, validators = [validate_password])
@@ -56,7 +72,9 @@ class UserRegister(serializers.ModelSerializer):
             email=validated_data['email'],
             firstName=validated_data['firstName'],
             lastName=validated_data['lastName'],
-            phone=validated_data['phone']        )
+            phone=validated_data['phone'],
+            is_admin=False
+                            )
         user.set_password(validated_data['password'])
 
         user.save()
@@ -81,3 +99,8 @@ class UserWithBookingSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = FlightSearch
 #         fields = '__all__'
+
+class HotelBookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HotelBooking
+        fields = '__all__'

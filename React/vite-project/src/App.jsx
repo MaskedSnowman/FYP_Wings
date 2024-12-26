@@ -19,6 +19,11 @@ import Amadeus from "./components/Flight/FlightFind/Amadeus";
 import Profile from "./components/Sign/Profile/Profile";
 import { AuthProvider } from "./functions/Authprovider/authprovider";
 import Sad from "./functions/Payment/components";
+import FlightDetails from "./components/Flight/FlightDetails/FlightDetails";
+import HotelPage from "./components/Hotel/HotelList/HotelPage";
+import AdminDashboard from "./components/Admin/AdminDashboard/AdminDashboard";
+import AdminRoute from "./functions/Authprovider/AdminRoute";
+import AdminReport from "./components/Admin/AdminReport/AdminReport";
 
 // import { AuthContext } from "./functions/Authprovider/authprovider";
 const App = () => {
@@ -41,13 +46,33 @@ const App = () => {
           <Route path="/*" element={<Error />} />
           <Route path="/killme" element={<Amadeus />} />
           <Route
-            path="/FlightFind/:originCity/:travelCity/:departDate/:arrivalDate"
+            path="/FlightFind/:originCity2/:travelCity2/:departDate/:arrivalDate"
             element={<FlightFind />}
           />
+          <Route
+            path="/FlightDetails/:offerId"
+            element={<FlightDetails />}
+          />
+          <Route path="/hotel/:id/:checkInDate/:checkOutDate" element={<HotelPage />} />
           <Route
             path="/HotelFind/:travelCity/:checkInDate/:checkOutDate"
             element={<HotelFind />}
           />
+          <Route
+            path="/AdminDashboard"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
+          <Route
+            path="/AdminReport"
+            element={
+              <AdminRoute>
+                <AdminReport />
+              </AdminRoute>
+            } />
+
         </Routes>
       </AuthProvider>
     </>
